@@ -5,4 +5,218 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USERS & AUTHENTICATION
+// ============================================================================
+
+/// Represents an application user with role-based access control.
+/// Roles follow a strict hierarchy: owner > ceo > manager_pole_ow > manager/coach > joueur
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.Varchar(255)
+  password     String   @db.Varchar(255)
+  displayName  String?  @db.Varchar(255)
+  role         String   @default("joueur") @db.Varchar(50)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  players      Player[]
+  teams        Team[]
+  tierLists    TierList[]
+  scrims       Scrim[]
+  stats        Stat[]
+
+  @@index([role])
+  @@map("app_users")
+}
+
+// ============================================================================
+// TEAMS & PLAYERS
+// ============================================================================
+
+/// Represents an Overwatch esports team.
+model Team {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique @db.Varchar(255)
+  elo           Int      @default(1000)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     Int?
+
+  // Relations
+  creator       User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  players       Player[]
+  scrims        Scrim[]
+
+  @@index([elo])
+  @@index([createdBy])
+  @@map("teams")
+}
+
+/// Represents a player in the esports ecosystem.
+model Player {
+  id          Int      @id @default(autoincrement())
+  pseudo      String   @unique @db.Varchar(255)
+  role        String   @db.Varchar(50) // Tank, DPS, Support
+  teamId      Int?
+  userId      Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  stats       Stat[]
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([role])
+  @@map("players")
+}
+
+// ============================================================================
+// HEROES & META
+// ============================================================================
+
+/// Represents a hero in Overwatch.
+model Hero {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.Varchar(255)
+  role      String   @db.Varchar(50) // Tank, DPS, Support
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  stats     Stat[]
+
+  @@index([role])
+  @@map("heroes")
+}
+
+/// Represents a map in Overwatch (Control, Escort, Hybrid, Push).
+model Map {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.Varchar(255)
+  type      String   @db.Varchar(50) // Control, Escort, Hybrid, Push
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  scrims    Scrim[]
+
+  @@index([type])
+  @@map("maps")
+}
+
+// ============================================================================
+// MATCH & SCRIM TRACKING
+// ============================================================================
+
+/// Represents a scrim (practice match) between teams.
+model Scrim {
+  id              Int      @id @default(autoincrement())
+  teamAId         Int
+  teamBId         Int
+  mapId           Int?
+  winnerTeamId    Int?
+  scoreA          Int      @default(0)
+  scoreB          Int      @default(0)
+  duration        Int? // in seconds
+  scheduledAt     DateTime?
+  playedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       Int?
+
+  // Relations
+  teamA           Team     @relation(fields: [teamAId], references: [id], onDelete: Cascade)
+  teamB           Team     @relation(fields: [teamBId], references: [id], name: "TeamB", onDelete: Cascade)
+  map             Map?     @relation(fields: [mapId], references: [id], onDelete: SetNull)
+  winner          Team?    @relation(fields: [winnerTeamId], references: [id], name: "Winner", onDelete: SetNull)
+  creator         User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([teamAId])
+  @@index([teamBId])
+  @@index([mapId])
+  @@index([winnerTeamId])
+  @@index([createdBy])
+  @@unique([teamAId, teamBId, playedAt])
+  @@map("scrims")
+}
+
+// ============================================================================
+// PLAYER STATISTICS
+// ============================================================================
+
+/// Represents player statistics for a specific hero.
+model Stat {
+  id          Int      @id @default(autoincrement())
+  playerId    Int
+  heroId      Int
+  userId      Int?
+  eliminations Int @default(0)
+  deaths      Int      @default(0)
+  damageDealt Int      @default(0)
+  healing     Int      @default(0)
+  winRate     Float    @default(0.0) // percentage 0-100
+  playTime    Int      @default(0) // in seconds
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  player      Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  hero        Hero     @relation(fields: [heroId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([playerId, heroId])
+  @@index([playerId])
+  @@index([heroId])
+  @@index([userId])
+  @@map("stats")
+}
+
+// ============================================================================
+// MATCHMAKING & RANKING
+// ============================================================================
+
+/// Represents a tier list entry for ranking users by skill.
+model TierList {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  rank        Int      @default(0)
+  rp          Int      @default(0) // Rating Points
+  region      String   @default("EU") @db.Varchar(50)
+  season      Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, season, region])
+  @@index([userId])
+  @@index([rank])
+  @@index([season])
+  @@map("tier_lists")
+}
+
+// ============================================================================
+// MATCHMAKING QUEUE
+// ============================================================================
+
+/// Represents a player in the matchmaking queue.
+model MatchmakingQueue {
+  id          Int      @id @default(autoincrement())
+  playerId    Int      @unique
+  queueType   String   @db.Varchar(50) // ranked, casual, scrim
+  joinedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([queueType])
+  @@index([joinedAt])
+  @@map("matchmaking_queues")
 }

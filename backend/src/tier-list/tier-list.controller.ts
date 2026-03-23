@@ -53,6 +53,25 @@ export class TierListController {
 		return this.tierListService.getUserHeroTiers(userId, role);
 	}
 
+	@Get('users/by-pseudo/:pseudo/heroes')
+	async getUserHeroTiersByPseudo(
+		@Param('pseudo') pseudo: string,
+		@Query('role') role?: string,
+		@CurrentUser() authUser?: AuthenticatedUser,
+	) {
+		const targetUser = await this.tierListService.findUserByPseudo(pseudo);
+		this.ensureCanAccessUser(targetUser.id, authUser!);
+
+		const heroes = await this.tierListService.getUserHeroTiers(targetUser.id, role);
+
+		return {
+			userId: targetUser.id,
+			username: targetUser.username,
+			displayName: targetUser.displayName,
+			heroes,
+		};
+	}
+
 	@Get('users/:userId/grouped')
 	getUserTierListGrouped(
 		@Param('userId', ParseIntPipe) userId: number,

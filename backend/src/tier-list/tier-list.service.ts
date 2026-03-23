@@ -7,6 +7,27 @@ import { UpsertTierEntryDto } from './dto/upsert-tier-entry.dto';
 export class TierListService {
 	constructor(@Inject('DATABASE_POOL') private readonly db: Pool) {}
 
+	async findUserByPseudo(pseudo: string) {
+		const result = await this.db.query(
+			`SELECT id, username, display_name AS "displayName"
+			 FROM app_users
+			 WHERE LOWER(username) = LOWER($1)
+				OR LOWER(display_name) = LOWER($1)
+			 LIMIT 1`,
+			[pseudo],
+		);
+
+		if (result.rows.length === 0) {
+			throw new NotFoundException('User not found for this pseudo');
+		}
+
+		return result.rows[0] as {
+			id: number;
+			username: string;
+			displayName: string | null;
+		};
+	}
+
 	async createUser(dto: CreateTierListUserDto) {
 		const result = await this.db.query(
 			`INSERT INTO app_users (username, display_name)
