@@ -15,6 +15,7 @@ import { HeroesModule } from './heroes/heroes.module';
 import { TierListModule } from './tier-list/tier-list.module';
 import { WriteAuthGuard } from './security/write-auth.guard';
 import { AuthModule } from './auth/auth.module';
+import { FaceitModule } from './faceit/faceit.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AuthModule } from './auth/auth.module';
     HeroesModule,
     TierListModule,
     AuthModule,
+    FaceitModule,
   ],
   controllers: [AppController],
   providers: [

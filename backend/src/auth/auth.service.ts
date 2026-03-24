@@ -30,10 +30,10 @@ export class AuthService {
 
     try {
       const result = await this.db.query(
-        `INSERT INTO app_users (username, display_name, password_hash, role)
-         VALUES ($1, $2, $3, 'joueur')
-         RETURNING id, username, display_name, role`,
-        [dto.username, dto.displayName ?? null, passwordHash],
+        `INSERT INTO app_users (username, display_name, password_hash, role, faceit_nickname)
+         VALUES ($1, $2, $3, 'joueur', $4)
+         RETURNING id, username, display_name, role, faceit_nickname`,
+        [dto.username, dto.displayName ?? null, passwordHash, dto.faceitNickname ?? null],
       );
 
       const user = result.rows[0];
@@ -53,6 +53,7 @@ export class AuthService {
           username: user.username,
           displayName: user.display_name,
           role: user.role,
+          faceitNickname: user.faceit_nickname,
         },
       };
     } catch (error) {
@@ -109,7 +110,7 @@ export class AuthService {
 
   async getMe(userId: number) {
     const result = await this.db.query(
-      `SELECT id, username, display_name, role, created_at
+      `SELECT id, username, display_name, role, faceit_nickname, created_at
        FROM app_users
        WHERE id = $1`,
       [userId],
@@ -125,6 +126,7 @@ export class AuthService {
       username: user.username,
       displayName: user.display_name,
       role: user.role,
+      faceitNickname: user.faceit_nickname,
       createdAt: user.created_at,
     };
   }

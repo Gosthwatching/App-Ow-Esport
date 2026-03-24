@@ -16,6 +16,7 @@ import type {
   AuthForm,
   HeroPoolEntry,
   HeroPoolByPseudoResponse,
+  TeamFaceitMapStatsResponse,
 } from './utils/types'
 
 function App() {
@@ -32,27 +33,45 @@ function App() {
     username: '',
     password: '',
     displayName: '',
+    faceitNickname: '',
   })
 
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamElo, setNewTeamElo] = useState('1000')
-  const [roleTargetId, setRoleTargetId] = useState('')
-  const [newRole, setNewRole] = useState('joueur')
   const [successMessage, setSuccessMessage] = useState('')
-  const [currentPage, setCurrentPage] = useState<'overview' | 'teams' | 'players' | 'heroes'>('overview')
+  const [currentPage, setCurrentPage] = useState<'overview' | 'teams' | 'players' | 'heroes' | 'faceit'>('overview')
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [selectedTeamPlayers, setSelectedTeamPlayers] = useState<Player[]>([])
   const [teamDetailsLoading, setTeamDetailsLoading] = useState(false)
   const [teamEditName, setTeamEditName] = useState('')
   const [teamEditElo, setTeamEditElo] = useState('1000')
+  const [fillNames, setFillNames] = useState('')
+  const [fillRole, setFillRole] = useState('DPS')
+  const [fillRank, setFillRank] = useState('Gold')
   const [heroPoolEntries, setHeroPoolEntries] = useState<HeroPoolEntry[]>([])
   const [heroPoolOwner, setHeroPoolOwner] = useState('')
   const [heroPseudoInput, setHeroPseudoInput] = useState('')
   const [heroPoolLoading, setHeroPoolLoading] = useState(false)
+  const [faceitSelectedTeamId, setFaceitSelectedTeamId] = useState('')
+  const [faceitMapFilter, setFaceitMapFilter] = useState('')
+  const [faceitLimit, setFaceitLimit] = useState('20')
+  const [faceitLoading, setFaceitLoading] = useState(false)
+  const [faceitMapStats, setFaceitMapStats] = useState<TeamFaceitMapStatsResponse['mapStats']>([])
 
-  const canManageRoles = canAccess(user?.role, 'coach')
   const canCreateTeams = canAccess(user?.role, 'owner')
   const canManageTeams = canAccess(user?.role, 'admin')
+  const canFillTeams = canAccess(user?.role, 'coach')
+
+  // Find the player profile linked to the logged-in user
+  const myPlayer = players.find(
+    (p) => (p.userId ?? p.user_id) === user?.id,
+  )
+  const myPlayerRole = myPlayer?.role ?? null
+
+  // Is the displayed hero pool the logged-in user's own pool?
+  const isOwnPool =
+    !heroPseudoInput.trim() ||
+    heroPseudoInput.trim().toLowerCase() === (user?.displayName ?? user?.username ?? '').toLowerCase()
 
   const topTeams = useMemo(() => {
     return [...teams].sort((a, b) => b.elo - a.elo).slice(0, 2)
@@ -82,6 +101,10 @@ function App() {
     setPlayers(Array.isArray(playerList) ? playerList : [])
     setHeroes(Array.isArray(heroList) ? heroList : [])
 
+    if (!faceitSelectedTeamId && Array.isArray(teamList) && teamList.length > 0) {
+      setFaceitSelectedTeamId(String(teamList[0].id))
+    }
+
     // Default hero pool is the connected account pool.
     const ownPool = await apiRequest<HeroPoolEntry[]>(
       `/tier-list/users/${me.id}/heroes`,
@@ -92,6 +115,41 @@ function App() {
     setHeroPoolEntries(Array.isArray(ownPool) ? ownPool : [])
     setHeroPoolOwner(me.displayName || me.username)
     setHeroPseudoInput('')
+  }
+
+  async function handleSetHeroTier(heroId: number, tier: string) {
+    if (!token || !user) return
+    await apiRequest(
+      `/tier-list/users/${user.id}/heroes/${heroId}`,
+      'PUT',
+      { tier },
+      token,
+    )
+    // Refresh the hero pool entries
+    const updated = await apiRequest<HeroPoolEntry[]>(
+      `/tier-list/users/${user.id}/heroes`,
+      'GET',
+      undefined,
+      token,
+    )
+    setHeroPoolEntries(Array.isArray(updated) ? updated : [])
+  }
+
+  async function handleRemoveHeroTier(heroId: number) {
+    if (!token || !user) return
+    await apiRequest(
+      `/tier-list/users/${user.id}/heroes/${heroId}`,
+      'DELETE',
+      undefined,
+      token,
+    )
+    const updated = await apiRequest<HeroPoolEntry[]>(
+      `/tier-list/users/${user.id}/heroes`,
+      'GET',
+      undefined,
+      token,
+    )
+    setHeroPoolEntries(Array.isArray(updated) ? updated : [])
   }
 
   async function loadHeroPoolByPseudo(pseudo: string) {
@@ -205,6 +263,7 @@ function App() {
           username: authForm.username,
           password: authForm.password,
           displayName: authForm.displayName || null,
+          faceitNickname: authForm.faceitNickname || null,
         })
       }
 
@@ -218,7 +277,7 @@ function App() {
 
       localStorage.setItem('ow_token', loginResult.accessToken)
       setToken(loginResult.accessToken)
-      setAuthForm({ username: '', password: '', displayName: '' })
+      setAuthForm({ username: '', password: '', displayName: '', faceitNickname: '' })
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : 'Auth impossible')
     }
@@ -268,6 +327,7 @@ function App() {
       setSelectedTeamPlayers(Array.isArray(teamPlayers) ? teamPlayers : [])
       setTeamEditName(teamDetails.name)
       setTeamEditElo(String(teamDetails.elo ?? 1000))
+      setFaceitSelectedTeamId(String(teamDetails.id))
     } catch (detailsError) {
       setError(detailsError instanceof Error ? detailsError.message : 'Impossible de charger la team')
     } finally {
@@ -304,6 +364,118 @@ function App() {
     }
   }
 
+  async function handleFillSelectedTeam(event: FormEvent) {
+    event.preventDefault()
+
+    if (!token || !selectedTeam) {
+      return
+    }
+
+    const names = fillNames
+      .split(',')
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0)
+
+    if (names.length === 0) {
+      setError('Ajoute au moins un pseudo joueur.')
+      return
+    }
+
+    setError('')
+    setSuccessMessage('')
+
+    try {
+      await apiRequest(
+        `/teams/${selectedTeam.id}/fill`,
+        'POST',
+        {
+          names,
+          role: fillRole,
+          rank: fillRank,
+        },
+        token,
+      )
+
+      await loadDashboard(token)
+      await handleLoadTeamDetails(String(selectedTeam.id))
+      setFillNames('')
+      setSuccessMessage('Roster mis a jour avec succes.')
+    } catch (fillError) {
+      setError(fillError instanceof Error ? fillError.message : 'Impossible de remplir la team')
+    }
+  }
+
+  async function handleLoadFaceitTeamStats(event: FormEvent) {
+    event.preventDefault()
+
+    if (!token) {
+      return
+    }
+
+    if (!faceitSelectedTeamId) {
+      setError('Selectionne une team pour charger les stats FACEIT.')
+      return
+    }
+
+    setFaceitLoading(true)
+    setError('')
+    setSuccessMessage('')
+
+    try {
+      const query = new URLSearchParams({ limit: faceitLimit || '20' })
+      if (faceitMapFilter.trim()) {
+        query.set('map', faceitMapFilter.trim())
+      }
+
+      const response = await apiRequest<TeamFaceitMapStatsResponse>(
+        `/faceit/teams/${encodeURIComponent(faceitSelectedTeamId)}/map-stats?${query.toString()}`,
+        'GET',
+        undefined,
+        token,
+      )
+
+      setFaceitMapStats(Array.isArray(response.mapStats) ? response.mapStats : [])
+      setSuccessMessage(`Stats FACEIT chargees pour ${response.team.name}.`)
+      setCurrentPage('faceit')
+    } catch (faceitError) {
+      setFaceitMapStats([])
+      setError(faceitError instanceof Error ? faceitError.message : 'Chargement FACEIT impossible')
+    } finally {
+      setFaceitLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!token || currentPage !== 'faceit' || !faceitSelectedTeamId) {
+      return
+    }
+
+    setFaceitLoading(true)
+    setError('')
+
+    const query = new URLSearchParams({ limit: faceitLimit || '20' })
+    if (faceitMapFilter.trim()) {
+      query.set('map', faceitMapFilter.trim())
+    }
+
+    apiRequest<TeamFaceitMapStatsResponse>(
+      `/faceit/teams/${encodeURIComponent(faceitSelectedTeamId)}/map-stats?${query.toString()}`,
+      'GET',
+      undefined,
+      token,
+    )
+      .then((response) => {
+        setFaceitMapStats(Array.isArray(response.mapStats) ? response.mapStats : [])
+      })
+      .catch((faceitError) => {
+        setFaceitMapStats([])
+        setError(faceitError instanceof Error ? faceitError.message : 'Chargement FACEIT impossible')
+      })
+      .finally(() => {
+        setFaceitLoading(false)
+      })
+  }, [currentPage, faceitSelectedTeamId, faceitMapFilter, faceitLimit, token])
+
   async function handleDeleteTeam(teamIdentifier: string) {
     if (!token) {
       return
@@ -332,26 +504,6 @@ function App() {
     }
   }
 
-  async function handleSetRole(event: FormEvent) {
-    event.preventDefault()
-
-    if (!token) {
-      return
-    }
-
-    setError('')
-    setSuccessMessage('')
-
-    try {
-      await apiRequest(`/auth/users/${roleTargetId}/role`, 'PATCH', { role: newRole }, token)
-      await loadDashboard(token)
-      setRoleTargetId('')
-      setSuccessMessage('Role mis a jour.')
-    } catch (roleError) {
-      setError(roleError instanceof Error ? roleError.message : 'Changement de role impossible')
-    }
-  }
-
   function logout() {
     localStorage.removeItem('ow_token')
     setToken(null)
@@ -366,6 +518,13 @@ function App() {
     setSelectedTeamPlayers([])
     setTeamEditName('')
     setTeamEditElo('1000')
+    setFillNames('')
+    setFillRole('DPS')
+    setFillRank('Gold')
+    setFaceitSelectedTeamId('')
+    setFaceitMapFilter('')
+    setFaceitLimit('20')
+    setFaceitMapStats([])
     setSuccessMessage('')
     setCurrentPage('overview')
   }
@@ -382,9 +541,11 @@ function App() {
         username={authForm.username}
         password={authForm.password}
         displayName={authForm.displayName}
+        faceitNickname={authForm.faceitNickname}
         onUsernameChange={(value) => setAuthForm((prev) => ({ ...prev, username: value }))}
         onPasswordChange={(value) => setAuthForm((prev) => ({ ...prev, password: value }))}
         onDisplayNameChange={(value) => setAuthForm((prev) => ({ ...prev, displayName: value }))}
+        onFaceitNicknameChange={(value) => setAuthForm((prev) => ({ ...prev, faceitNickname: value }))}
         onSubmit={handleAuthSubmit}
         error={error}
       />
@@ -403,20 +564,23 @@ function App() {
       heroesCount={heroes.length}
       canCreateTeams={canCreateTeams}
       canManageTeams={canManageTeams}
-      canManageRoles={canManageRoles}
+      canFillTeams={canFillTeams}
       newTeamName={newTeamName}
       newTeamElo={newTeamElo}
-      roleTargetId={roleTargetId}
-      newRole={newRole}
       selectedTeam={selectedTeam}
       selectedTeamPlayers={selectedTeamPlayers}
       teamDetailsLoading={teamDetailsLoading}
       teamEditName={teamEditName}
       teamEditElo={teamEditElo}
+      fillNames={fillNames}
+      fillRole={fillRole}
+      fillRank={fillRank}
       heroPoolOwner={heroPoolOwner || (user.displayName || user.username)}
       heroPseudoInput={heroPseudoInput}
       heroPoolLoading={heroPoolLoading}
       heroPoolEntries={heroPoolEntries}
+      isOwnPool={isOwnPool}
+      myPlayerRole={myPlayerRole}
       error={error}
       successMessage={successMessage}
       currentPage={currentPage}
@@ -428,14 +592,26 @@ function App() {
       onLoadTeamDetails={handleLoadTeamDetails}
       onTeamEditNameChange={setTeamEditName}
       onTeamEditEloChange={setTeamEditElo}
+      onFillNamesChange={setFillNames}
+      onFillRoleChange={setFillRole}
+      onFillRankChange={setFillRank}
       onUpdateSelectedTeam={handleUpdateSelectedTeam}
+      onFillSelectedTeam={handleFillSelectedTeam}
       onDeleteTeam={handleDeleteTeam}
       onOpenPlayerProfile={handleOpenPlayerProfile}
       onHeroPseudoInputChange={setHeroPseudoInput}
       onSearchHeroPoolByPseudo={handleHeroPoolSearch}
-      onTargetIdChange={setRoleTargetId}
-      onRoleChange={setNewRole}
-      onSetRole={handleSetRole}
+      onSetTier={handleSetHeroTier}
+      onRemoveTier={handleRemoveHeroTier}
+      faceitSelectedTeamId={faceitSelectedTeamId}
+      faceitMapFilter={faceitMapFilter}
+      faceitLimit={faceitLimit}
+      faceitLoading={faceitLoading}
+      faceitMapStats={faceitMapStats}
+      onFaceitTeamChange={setFaceitSelectedTeamId}
+      onFaceitMapFilterChange={setFaceitMapFilter}
+      onFaceitLimitChange={setFaceitLimit}
+      onLoadFaceitStats={handleLoadFaceitTeamStats}
     />
   )
 }

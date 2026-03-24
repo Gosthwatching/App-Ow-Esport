@@ -18,13 +18,27 @@ export function PlayersView({ players, onViewProfile }: PlayersViewProps) {
               <div className="player-avatar">{player.pseudo[0]?.toUpperCase()}</div>
               <h4>{player.pseudo}</h4>
               <p className="role-badge">{player.role}</p>
-              {player.teamId ? (
+              {player.rank ? <p className="rank-badge">{player.rank}</p> : null}
+
+              {player.faceit_elo ? (
+                <div className="faceit-info">
+                  <span className="faceit-label">FACEIT</span>
+                  <span className="faceit-elo">{player.faceit_elo} ELO</span>
+                  {player.faceit_level ? (
+                    <span className="faceit-level">Niv.&nbsp;{player.faceit_level}</span>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="faceit-missing">Faceit non lié</p>
+              )}
+
+              {(player.teamId ?? player.team_id) ? (
                 <p className="team-info">Équipe assignée</p>
               ) : (
                 <p className="unassigned">Non assigné</p>
               )}
               <button className="action-btn" onClick={() => onViewProfile(player.pseudo)}>
-                Voir profil
+                Voir pool de héros
               </button>
             </div>
           ))

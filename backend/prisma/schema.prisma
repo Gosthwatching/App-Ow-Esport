@@ -64,6 +64,9 @@ model Player {
   role        String   @db.Varchar(50) // Tank, DPS, Support
   teamId      Int?
   userId      Int?
+  faceitId    String?  @db.Varchar(255) // Faceit player UUID
+  faceitElo   Int?                      // Faceit ELO rating
+  faceitLevel Int?                      // Faceit skill level 1-10
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

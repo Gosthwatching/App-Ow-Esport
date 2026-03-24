@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe, Query } from '@nestjs/common';
 import { PlayersService } from './players.service';
 import { CreatePlayerDto } from './dto/create-player.dto';
 import { UpdatePlayerDto } from './dto/update-player.dto';
@@ -52,5 +52,19 @@ export class PlayersController {
   @Roles('admin')
   delete(@Param('id', ParseIntPipe) id: number) {
     return this.playersService.delete(id);
+  }
+
+  /**
+   * Synchronise les données Faceit d'un joueur.
+   * POST /players/:id/sync-faceit?nickname=FaceitPseudo
+   * Le paramètre nickname est optionnel (utilise le pseudo du joueur par défaut).
+   */
+  @Post(':id/sync-faceit')
+  @Roles('admin')
+  syncFaceit(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('nickname') nickname?: string,
+  ) {
+    return this.playersService.syncFaceit(id, nickname);
   }
 }

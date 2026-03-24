@@ -7,6 +7,7 @@ import {
 import { Pool } from 'pg';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
+import { FillTeamPlayersDto } from './dto/fill-team-players.dto';
 
 @Injectable()
 export class TeamsService {
@@ -66,6 +67,53 @@ export class TeamsService {
       [dto.name, slug, dto.elo ?? 1000],
     );
     return { message: 'Team created' };
+  }
+
+  async fillTeam(teamIdentifier: string, dto: FillTeamPlayersDto) {
+    const team = await this.findTeamByIdentifier(teamIdentifier);
+    const role = dto.role ?? 'DPS';
+    const rank = dto.rank ?? 'Gold';
+
+    const normalizedNames = dto.names
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+
+    if (!normalizedNames.length) {
+      throw new BadRequestException('At least one valid player name is required');
+    }
+
+    const created: string[] = [];
+    const assigned: string[] = [];
+
+    for (const pseudo of normalizedNames) {
+      const existingPlayerResult = await this.db.query(
+        'SELECT id FROM players WHERE LOWER(pseudo) = LOWER($1) LIMIT 1',
+        [pseudo],
+      );
+
+      if (existingPlayerResult.rows.length > 0) {
+        await this.db.query('UPDATE players SET team_id = $1 WHERE id = $2', [
+          team.id,
+          existingPlayerResult.rows[0].id as number,
+        ]);
+        assigned.push(pseudo);
+        continue;
+      }
+
+      await this.db.query(
+        'INSERT INTO players (pseudo, role, rank, team_id) VALUES ($1, $2, $3, $4)',
+        [pseudo, role, rank, team.id],
+      );
+      created.push(pseudo);
+    }
+
+    return {
+      message: 'Team roster updated',
+      teamId: team.id,
+      teamName: team.name,
+      created,
+      assigned,
+    };
   }
 
   async update(teamIdentifier: string, dto: UpdateTeamDto) {

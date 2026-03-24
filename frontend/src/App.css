@@ -830,3 +830,226 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── Hero Pool Editor ─────────────────────────────────── */
+.heroes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.heroes-header h2 {
+  margin: 0;
+}
+
+.role-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.role-tab {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s ease;
+}
+
+.role-tab:hover {
+  border-color: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.role-tab.active {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
+  font-weight: 600;
+}
+
+.pool-section {
+  margin-bottom: 28px;
+}
+
+.pool-section-title {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.heroes-pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.heroes-pool-grid.unranked .hero-tile {
+  opacity: 0.6;
+}
+
+.heroes-pool-grid.unranked .hero-tile:hover {
+  opacity: 1;
+}
+
+.hero-tile {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  padding: 10px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.hero-tile--tiered {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.07);
+  opacity: 1 !important;
+}
+
+.hero-tile:hover {
+  border-color: var(--accent-soft);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hero-tile-tier-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 10px 10px 0 0;
+}
+
+.hero-tile-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero-tile-role-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.hero-tier-btns {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.tier-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.tier-btn:hover:not(:disabled) {
+  color: #fff;
+}
+
+.tier-btn--S.active  { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+.tier-btn--A.active  { background: #ff9f43; border-color: #ff9f43; color: #fff; }
+.tier-btn--B.active  { background: #ffd32a; border-color: #ffd32a; color: #000; }
+.tier-btn--C.active  { background: #0be881; border-color: #0be881; color: #000; }
+.tier-btn--D.active  { background: #4bcffa; border-color: #4bcffa; color: #000; }
+
+.tier-btn--S:hover:not(:disabled) { background: #ff6b35; border-color: #ff6b35; }
+.tier-btn--A:hover:not(:disabled) { background: #ff9f43; border-color: #ff9f43; }
+.tier-btn--B:hover:not(:disabled) { background: #ffd32a; border-color: #ffd32a; color: #000; }
+.tier-btn--C:hover:not(:disabled) { background: #0be881; border-color: #0be881; color: #000; }
+.tier-btn--D:hover:not(:disabled) { background: #4bcffa; border-color: #4bcffa; color: #000; }
+
+.tier-btn--remove {
+  font-size: 0.85rem;
+  border-color: rgba(255, 80, 80, 0.4);
+  color: rgba(255, 80, 80, 0.7);
+}
+.tier-btn--remove:hover:not(:disabled) {
+  background: rgba(255, 80, 80, 0.3);
+  border-color: #ff5050;
+  color: #ff5050;
+}
+
+.hero-tier-badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #000;
+  margin-top: 4px;
+}
+
+/* ─── Faceit info in player cards ─────────────────────── */
+.faceit-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}
+
+.faceit-label {
+  background: #ff5500;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.faceit-elo {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.faceit-level {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.faceit-missing {
+  font-size: 0.75rem;
+  color: rgba(255, 80, 80, 0.6);
+  margin: 4px 0;
+}
+
+.rank-badge {
+  font-size: 0.75rem;
+  color: var(--accent-soft);
+  margin: 2px 0;
+}

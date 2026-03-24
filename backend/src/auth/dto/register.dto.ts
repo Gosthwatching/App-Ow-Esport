@@ -15,4 +15,9 @@ export class RegisterDto {
   @MinLength(8)
   @MaxLength(72)
   password: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  faceitNickname?: string;
 }

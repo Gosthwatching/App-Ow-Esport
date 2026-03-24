@@ -6,9 +6,11 @@ type AuthScreenProps = {
   username: string
   password: string
   displayName: string
+  faceitNickname: string
   onUsernameChange: (value: string) => void
   onPasswordChange: (value: string) => void
   onDisplayNameChange: (value: string) => void
+  onFaceitNicknameChange: (value: string) => void
   onSubmit: (e: FormEvent) => Promise<void>
   error: string
 }
@@ -19,9 +21,11 @@ export function AuthScreen({
   username,
   password,
   displayName,
+  faceitNickname,
   onUsernameChange,
   onPasswordChange,
   onDisplayNameChange,
+  onFaceitNicknameChange,
   onSubmit,
   error,
 }: AuthScreenProps) {
@@ -60,13 +64,24 @@ export function AuthScreen({
           </label>
 
           {authMode === 'register' ? (
-            <label>
-              Display name
-              <input
-                value={displayName}
-                onChange={(e) => onDisplayNameChange(e.target.value)}
-              />
-            </label>
+            <>
+              <label>
+                Display name
+                <input
+                  value={displayName}
+                  onChange={(e) => onDisplayNameChange(e.target.value)}
+                />
+              </label>
+              <label>
+                Pseudo Faceit <span className="muted" style={{ fontSize: '0.75rem' }}>(requis pour jouer)</span>
+                <input
+                  placeholder="ex: ZED_OW"
+                  value={faceitNickname}
+                  onChange={(e) => onFaceitNicknameChange(e.target.value)}
+                  required
+                />
+              </label>
+            </>
           ) : null}
 
           <label>

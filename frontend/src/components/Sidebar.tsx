@@ -1,6 +1,6 @@
 type SidebarProps = {
-  currentPage: 'overview' | 'teams' | 'players' | 'heroes'
-  onPageChange: (page: 'overview' | 'teams' | 'players' | 'heroes') => void
+  currentPage: 'overview' | 'teams' | 'players' | 'heroes' | 'faceit'
+  onPageChange: (page: 'overview' | 'teams' | 'players' | 'heroes' | 'faceit') => void
   onLogout: () => void
 }
 
@@ -36,6 +36,13 @@ export function Sidebar({ currentPage, onPageChange, onLogout }: SidebarProps) {
           title="Heroes"
         >
           H
+        </button>
+        <button
+          className={`nav-item ${currentPage === 'faceit' ? 'active' : ''}`}
+          onClick={() => onPageChange('faceit')}
+          title="Faceit"
+        >
+          F
         </button>
       </nav>
       <button className="nav-item bottom" onClick={onLogout} title="Logout">

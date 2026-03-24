@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common'
 import { TeamsService } from './teams.service';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
+import { FillTeamPlayersDto } from './dto/fill-team-players.dto';
 import { Roles } from '../security/roles.decorator';
 
 @Controller('teams')
@@ -21,6 +22,15 @@ export class TeamsController {
   @Get(':teamIdentifier/players')
   getPlayers(@Param('teamIdentifier') teamIdentifier: string) {
     return this.teamsService.getPlayers(teamIdentifier);
+  }
+
+  @Post(':teamIdentifier/fill')
+  @Roles('coach')
+  fillTeam(
+    @Param('teamIdentifier') teamIdentifier: string,
+    @Body() dto: FillTeamPlayersDto,
+  ) {
+    return this.teamsService.fillTeam(teamIdentifier, dto);
   }
 
   @Post()
