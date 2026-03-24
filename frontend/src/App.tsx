@@ -16,6 +16,8 @@ import type {
   AuthForm,
   HeroPoolEntry,
   HeroPoolByPseudoResponse,
+  MapPoolEntry,
+  MapPoolByPseudoResponse,
   TeamFaceitMapStatsResponse,
 } from './utils/types'
 
@@ -39,7 +41,7 @@ function App() {
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamElo, setNewTeamElo] = useState('1000')
   const [successMessage, setSuccessMessage] = useState('')
-  const [currentPage, setCurrentPage] = useState<'overview' | 'teams' | 'players' | 'heroes' | 'faceit'>('overview')
+  const [currentPage, setCurrentPage] = useState<'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit'>('overview')
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [selectedTeamPlayers, setSelectedTeamPlayers] = useState<Player[]>([])
   const [teamDetailsLoading, setTeamDetailsLoading] = useState(false)
@@ -58,6 +60,11 @@ function App() {
   const [faceitLoading, setFaceitLoading] = useState(false)
   const [faceitMapStats, setFaceitMapStats] = useState<TeamFaceitMapStatsResponse['mapStats']>([])
 
+  const [mapPoolEntries, setMapPoolEntries] = useState<MapPoolEntry[]>([])
+  const [mapPoolOwner, setMapPoolOwner] = useState('')
+  const [mapPseudoInput, setMapPseudoInput] = useState('')
+  const [mapPoolLoading, setMapPoolLoading] = useState(false)
+
   const canCreateTeams = canAccess(user?.role, 'owner')
   const canManageTeams = canAccess(user?.role, 'admin')
   const canFillTeams = canAccess(user?.role, 'coach')
@@ -72,6 +79,11 @@ function App() {
   const isOwnPool =
     !heroPseudoInput.trim() ||
     heroPseudoInput.trim().toLowerCase() === (user?.displayName ?? user?.username ?? '').toLowerCase()
+
+  // Is the displayed map pool the logged-in user's own pool?
+  const isOwnMapPool =
+    !mapPseudoInput.trim() ||
+    mapPseudoInput.trim().toLowerCase() === (user?.displayName ?? user?.username ?? '').toLowerCase()
 
   const topTeams = useMemo(() => {
     return [...teams].sort((a, b) => b.elo - a.elo).slice(0, 2)
@@ -115,6 +127,16 @@ function App() {
     setHeroPoolEntries(Array.isArray(ownPool) ? ownPool : [])
     setHeroPoolOwner(me.displayName || me.username)
     setHeroPseudoInput('')
+    // Default map pool is the connected account pool.
+    const ownMapPool = await apiRequest<MapPoolEntry[]>(
+      `/tier-list/users/${me.id}/maps`,
+      'GET',
+      undefined,
+      jwtToken,
+    )
+    setMapPoolEntries(Array.isArray(ownMapPool) ? ownMapPool : [])
+    setMapPoolOwner(me.displayName || me.username)
+    setMapPseudoInput('')
   }
 
   async function handleSetHeroTier(heroId: number, tier: string) {
@@ -206,9 +228,82 @@ function App() {
     await loadHeroPoolByPseudo(heroPseudoInput.trim())
   }
 
+  async function loadMapPoolByPseudo(pseudo: string) {
+    if (!token) {
+      return
+    }
+
+    setMapPoolLoading(true)
+    setError('')
+
+    try {
+      const response = await apiRequest<MapPoolByPseudoResponse>(
+        `/tier-list/users/by-pseudo/${encodeURIComponent(pseudo)}/maps`,
+        'GET',
+        undefined,
+        token,
+      )
+
+      setMapPoolEntries(Array.isArray(response.maps) ? response.maps : [])
+      setMapPoolOwner(response.displayName || response.username)
+      setMapPseudoInput(pseudo)
+    } catch (poolError) {
+      setError(poolError instanceof Error ? poolError.message : 'Map pool introuvable')
+    } finally {
+      setMapPoolLoading(false)
+    }
+  }
+
+  async function handleMapPoolSearch(event: FormEvent) {
+    event.preventDefault()
+
+    if (!mapPseudoInput.trim()) {
+      if (token && user) {
+        setMapPoolLoading(true)
+        try {
+          const ownMapPool = await apiRequest<MapPoolEntry[]>(
+            `/tier-list/users/${user.id}/maps`,
+            'GET',
+            undefined,
+            token,
+          )
+          setMapPoolEntries(Array.isArray(ownMapPool) ? ownMapPool : [])
+          setMapPoolOwner(user.displayName || user.username)
+          setMapPseudoInput('')
+        } catch (poolError) {
+          setError(poolError instanceof Error ? poolError.message : 'Map pool introuvable')
+        } finally {
+          setMapPoolLoading(false)
+        }
+      }
+      return
+    }
+
+    await loadMapPoolByPseudo(mapPseudoInput.trim())
+  }
+
   async function handleOpenPlayerProfile(pseudo: string) {
     setCurrentPage('heroes')
     await loadHeroPoolByPseudo(pseudo)
+  }
+
+  async function handleToggleMapPool(mapId: number, currentlyInPool: boolean) {
+    if (!token || !user) return
+
+    await apiRequest(
+      `/tier-list/users/${user.id}/maps/${mapId}`,
+      currentlyInPool ? 'DELETE' : 'PUT',
+      undefined,
+      token,
+    )
+
+    const updated = await apiRequest<MapPoolEntry[]>(
+      `/tier-list/users/${user.id}/maps`,
+      'GET',
+      undefined,
+      token,
+    )
+    setMapPoolEntries(Array.isArray(updated) ? updated : [])
   }
 
   useEffect(() => {
@@ -514,6 +609,9 @@ function App() {
     setHeroPoolEntries([])
     setHeroPoolOwner('')
     setHeroPseudoInput('')
+    setMapPoolEntries([])
+    setMapPoolOwner('')
+    setMapPseudoInput('')
     setSelectedTeam(null)
     setSelectedTeamPlayers([])
     setTeamEditName('')
@@ -580,6 +678,11 @@ function App() {
       heroPoolLoading={heroPoolLoading}
       heroPoolEntries={heroPoolEntries}
       isOwnPool={isOwnPool}
+      mapPoolOwner={mapPoolOwner || (user.displayName || user.username)}
+      mapPseudoInput={mapPseudoInput}
+      mapPoolLoading={mapPoolLoading}
+      mapPoolEntries={mapPoolEntries}
+      isOwnMapPool={isOwnMapPool}
       myPlayerRole={myPlayerRole}
       error={error}
       successMessage={successMessage}
@@ -603,6 +706,9 @@ function App() {
       onSearchHeroPoolByPseudo={handleHeroPoolSearch}
       onSetTier={handleSetHeroTier}
       onRemoveTier={handleRemoveHeroTier}
+      onMapPseudoInputChange={setMapPseudoInput}
+      onSearchMapPoolByPseudo={handleMapPoolSearch}
+      onToggleMapPool={handleToggleMapPool}
       faceitSelectedTeamId={faceitSelectedTeamId}
       faceitMapFilter={faceitMapFilter}
       faceitLimit={faceitLimit}

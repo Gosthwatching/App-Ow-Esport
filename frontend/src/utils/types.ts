@@ -49,6 +49,22 @@ export type HeroPoolByPseudoResponse = {
   heroes: HeroPoolEntry[]
 }
 
+export type MapPoolEntry = {
+  id: number
+  name: string
+  type: string
+  code?: string | null
+  image_url?: string | null
+  in_pool: boolean
+}
+
+export type MapPoolByPseudoResponse = {
+  userId: number
+  username: string
+  displayName?: string | null
+  maps: MapPoolEntry[]
+}
+
 export type AuthForm = {
   username: string
   password: string

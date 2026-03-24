@@ -103,6 +103,62 @@ select {
   font: inherit;
 }
 
+select,
+select option,
+select optgroup {
+  color: var(--text-primary);
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 42px;
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3 5.25L7 9.25L11 5.25' stroke='%23f3f1eb' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, no-repeat;
+  background-position: 0 0, right 14px center;
+  background-size: auto, 14px 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+select:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(255, 0, 0, 0.5);
+  box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.14);
+}
+
+select option {
+  background: #0d1433;
+  color: #f3f1eb;
+}
+
+select option:checked,
+select option:hover {
+  background: linear-gradient(180deg, #ff2a2a, #b30000);
+  color: #fff;
+}
+
+select option[value=''] {
+  color: rgba(243, 241, 235, 0.58);
+}
+
+select:disabled,
+input:disabled,
+textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 input::placeholder {
   color: rgba(255, 255, 255, 0.45);
 }
@@ -949,6 +1005,133 @@ td {
 .hero-tile-role-label {
   font-size: 0.7rem;
   color: var(--text-secondary);
+}
+
+.maps-pool-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.map-tile {
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 14px;
+  padding: 8px;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.map-tile:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.map-tile:disabled {
+  cursor: default;
+}
+
+.map-tile--selected {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.map-tile__visual {
+  position: relative;
+  min-height: 154px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px;
+  background-size: cover;
+  background-position: center;
+}
+
+.map-tile__overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(9, 13, 24, 0.10), rgba(9, 13, 24, 0.58) 58%, rgba(9, 13, 24, 0.90)),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.06), transparent 38%);
+}
+
+.map-tile__header,
+.map-tile__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.map-tile__footer {
+  align-items: flex-end;
+}
+
+.map-tile__footer strong,
+.map-tile__footer span,
+.map-tile__code,
+.map-tile__type {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.map-tile__footer strong {
+  font-size: 0.95rem;
+  color: #fff;
+  max-width: 70%;
+}
+
+.map-tile__footer span {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.map-tile__type,
+.map-tile__code {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.map-tile__type {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(8, 12, 24, 0.28);
+}
+
+.map-tile__code {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 700;
+}
+
+.map-tile__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 22px;
+}
+
+.map-tile__status {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.map-tile__check {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #0a0f1c;
+  font-weight: 800;
 }
 
 .hero-tier-btns {

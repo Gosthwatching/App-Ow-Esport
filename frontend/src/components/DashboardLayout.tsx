@@ -8,9 +8,10 @@ import { TeamsList } from './TeamsList'
 import { TeamsView } from './TeamsView'
 import { PlayersView } from './PlayersView'
 import { HeroesView } from './HeroesView'
+import { MapsView } from './MapsView'
 import { FaceitStatsView } from './FaceitStatsView'
 import type { FormEvent } from 'react'
-import type { User, Team, Player, HeroPoolEntry, TeamMapStatsEntry } from '../utils/types'
+import type { User, Team, Player, HeroPoolEntry, MapPoolEntry, TeamMapStatsEntry } from '../utils/types'
 
 type DashboardLayoutProps = {
   user: User
@@ -39,11 +40,16 @@ type DashboardLayoutProps = {
   heroPoolLoading: boolean
   heroPoolEntries: HeroPoolEntry[]
   isOwnPool: boolean
+  mapPoolOwner: string
+  mapPseudoInput: string
+  mapPoolLoading: boolean
+  mapPoolEntries: MapPoolEntry[]
+  isOwnMapPool: boolean
   myPlayerRole?: string | null
   error: string
   successMessage: string
-  currentPage: 'overview' | 'teams' | 'players' | 'heroes' | 'faceit'
-  onPageChange: (page: 'overview' | 'teams' | 'players' | 'heroes' | 'faceit') => void
+  currentPage: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit'
+  onPageChange: (page: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit') => void
   onLogout: () => void
   onTeamNameChange: (value: string) => void
   onTeamEloChange: (value: string) => void
@@ -62,6 +68,9 @@ type DashboardLayoutProps = {
   onSearchHeroPoolByPseudo: (e: FormEvent) => Promise<void>
   onSetTier: (heroId: number, tier: string) => Promise<void>
   onRemoveTier: (heroId: number) => Promise<void>
+  onMapPseudoInputChange: (value: string) => void
+  onSearchMapPoolByPseudo: (e: FormEvent) => Promise<void>
+  onToggleMapPool: (mapId: number, currentlyInPool: boolean) => Promise<void>
   faceitSelectedTeamId: string
   faceitMapFilter: string
   faceitLimit: string
@@ -100,6 +109,11 @@ export function DashboardLayout({
   heroPoolLoading,
   heroPoolEntries,
   isOwnPool,
+  mapPoolOwner,
+  mapPseudoInput,
+  mapPoolLoading,
+  mapPoolEntries,
+  isOwnMapPool,
   myPlayerRole,
   error,
   successMessage,
@@ -123,6 +137,9 @@ export function DashboardLayout({
   onSearchHeroPoolByPseudo,
   onSetTier,
   onRemoveTier,
+  onMapPseudoInputChange,
+  onSearchMapPoolByPseudo,
+  onToggleMapPool,
   faceitSelectedTeamId,
   faceitMapFilter,
   faceitLimit,
@@ -200,6 +217,19 @@ export function DashboardLayout({
             onSearchByPseudo={onSearchHeroPoolByPseudo}
             onSetTier={onSetTier}
             onRemoveTier={onRemoveTier}
+          />
+        )}
+
+        {currentPage === 'maps' && (
+          <MapsView
+            poolOwner={mapPoolOwner}
+            pseudoInput={mapPseudoInput}
+            isLoading={mapPoolLoading}
+            poolEntries={mapPoolEntries}
+            isOwnPool={isOwnMapPool}
+            onPseudoInputChange={onMapPseudoInputChange}
+            onSearchByPseudo={onSearchMapPoolByPseudo}
+            onToggleMap={onToggleMapPool}
           />
         )}
 

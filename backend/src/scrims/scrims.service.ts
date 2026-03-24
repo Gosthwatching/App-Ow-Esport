@@ -7,6 +7,132 @@ import { UpdateScrimScoreDto } from './dto/update-scrim-score.dto';
 export class ScrimsService {
 	constructor(@Inject('DATABASE_POOL') private readonly db: Pool) {}
 
+	private async getTeamMapPoolCoverage(teamId: number) {
+		const linkedPlayersResult = await this.db.query(
+			`SELECT COUNT(DISTINCT p.id)::int AS count
+			 FROM players p
+			 JOIN app_users u
+				ON LOWER(u.username) = LOWER(p.pseudo)
+				OR LOWER(COALESCE(u.display_name, '')) = LOWER(p.pseudo)
+				OR LOWER(COALESCE(u.faceit_nickname, '')) = LOWER(p.pseudo)
+			 WHERE p.team_id = $1`,
+			[teamId],
+		);
+
+		const pooledMapsResult = await this.db.query(
+			`SELECT COUNT(DISTINCT ump.map_id)::int AS count
+			 FROM players p
+			 JOIN app_users u
+				ON LOWER(u.username) = LOWER(p.pseudo)
+				OR LOWER(COALESCE(u.display_name, '')) = LOWER(p.pseudo)
+				OR LOWER(COALESCE(u.faceit_nickname, '')) = LOWER(p.pseudo)
+			 JOIN user_map_pools ump ON ump.user_id = u.id
+			 WHERE p.team_id = $1`,
+			[teamId],
+		);
+
+		return {
+			linkedPlayersCount: linkedPlayersResult.rows[0]?.count ?? 0,
+			pooledMapsCount: pooledMapsResult.rows[0]?.count ?? 0,
+		};
+	}
+
+	private async getAllMaps() {
+		const result = await this.db.query(
+			`SELECT id, name, type, code, image_url
+			 FROM maps
+			 ORDER BY type ASC, name ASC`,
+		);
+
+		return result.rows;
+	}
+
+	async getEligibleMaps(team1Id: number, team2Id: number) {
+		if (team1Id === team2Id) {
+			throw new BadRequestException('A scrim requires two different teams');
+		}
+
+		const teamsResult = await this.db.query(
+			`SELECT id, name
+			 FROM teams
+			 WHERE id = ANY($1::int[])`,
+			[[team1Id, team2Id]],
+		);
+
+		if (teamsResult.rows.length !== 2) {
+			throw new BadRequestException('Both teams must exist');
+		}
+
+		const [team1Coverage, team2Coverage] = await Promise.all([
+			this.getTeamMapPoolCoverage(team1Id),
+			this.getTeamMapPoolCoverage(team2Id),
+		]);
+
+		const restrictionActive =
+			team1Coverage.linkedPlayersCount > 0 &&
+			team2Coverage.linkedPlayersCount > 0 &&
+			team1Coverage.pooledMapsCount > 0 &&
+			team2Coverage.pooledMapsCount > 0;
+
+		if (!restrictionActive) {
+			return {
+				restrictionActive: false,
+				reason:
+					'At least one team has no linked players or no player-specific map pool yet, so all maps remain available.',
+				teams: teamsResult.rows,
+				maps: await this.getAllMaps(),
+			};
+		}
+
+		const sharedMapsResult = await this.db.query(
+			`SELECT m.id,
+					m.name,
+					m.type,
+					m.code,
+					m.image_url,
+					COUNT(DISTINCT p1.id)::int AS team1_player_count,
+					COUNT(DISTINCT p2.id)::int AS team2_player_count,
+					ARRAY_REMOVE(ARRAY_AGG(DISTINCT p1.pseudo), NULL) AS team1_players,
+					ARRAY_REMOVE(ARRAY_AGG(DISTINCT p2.pseudo), NULL) AS team2_players
+			 FROM maps m
+			 JOIN user_map_pools ump1 ON ump1.map_id = m.id
+			 JOIN app_users u1 ON u1.id = ump1.user_id
+			 JOIN players p1
+				ON p1.team_id = $1
+				AND (
+					LOWER(u1.username) = LOWER(p1.pseudo)
+					OR LOWER(COALESCE(u1.display_name, '')) = LOWER(p1.pseudo)
+					OR LOWER(COALESCE(u1.faceit_nickname, '')) = LOWER(p1.pseudo)
+				)
+			 JOIN user_map_pools ump2 ON ump2.map_id = m.id
+			 JOIN app_users u2 ON u2.id = ump2.user_id
+			 JOIN players p2
+				ON p2.team_id = $2
+				AND (
+					LOWER(u2.username) = LOWER(p2.pseudo)
+					OR LOWER(COALESCE(u2.display_name, '')) = LOWER(p2.pseudo)
+					OR LOWER(COALESCE(u2.faceit_nickname, '')) = LOWER(p2.pseudo)
+				)
+			 GROUP BY m.id, m.name, m.type, m.code, m.image_url
+			 ORDER BY m.type ASC, m.name ASC`,
+			[team1Id, team2Id],
+		);
+
+		return {
+			restrictionActive: true,
+			reason:
+				sharedMapsResult.rows.length === 0
+					? 'No shared map exists between the two team map pools.'
+					: null,
+			teams: teamsResult.rows,
+			maps: sharedMapsResult.rows,
+			coverage: {
+				team1: team1Coverage,
+				team2: team2Coverage,
+			},
+		};
+	}
+
 	async getAll() {
 		const result = await this.db.query(
 			`SELECT s.*,
@@ -58,6 +184,20 @@ export class ScrimsService {
 	async create(dto: CreateScrimDto) {
 		if (!dto.maps || dto.maps.length === 0) {
 			throw new BadRequestException('At least one map must be provided');
+		}
+
+		const eligibleMaps = await this.getEligibleMaps(dto.team1Id, dto.team2Id);
+		if (eligibleMaps.restrictionActive) {
+			const allowedMapIds = new Set<number>(eligibleMaps.maps.map((map) => map.id as number));
+			const invalidMapIds = dto.maps
+				.map((map) => map.mapId)
+				.filter((mapId) => !allowedMapIds.has(mapId));
+
+			if (invalidMapIds.length > 0) {
+				throw new BadRequestException(
+					`These maps are outside the shared player map pool for this scrim: ${invalidMapIds.join(', ')}`,
+				);
+			}
 		}
 
 		const client = await this.db.connect();

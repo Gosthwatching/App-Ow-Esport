@@ -7,6 +7,7 @@ import {
 	ParseIntPipe,
 	Post,
 	Put,
+	Query,
 } from '@nestjs/common';
 import { ScrimsService } from './scrims.service';
 import { CreateScrimDto } from './dto/create-scrim.dto';
@@ -20,6 +21,14 @@ export class ScrimsController {
 	@Get()
 	getAll() {
 		return this.scrimsService.getAll();
+	}
+
+	@Get('eligible-maps/options')
+	getEligibleMaps(
+		@Query('team1Id', ParseIntPipe) team1Id: number,
+		@Query('team2Id', ParseIntPipe) team2Id: number,
+	) {
+		return this.scrimsService.getEligibleMaps(team1Id, team2Id);
 	}
 
 	@Get(':id')

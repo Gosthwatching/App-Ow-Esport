@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap');
 
 :root {
+  color-scheme: dark;
   --page-bg: #0A1233;
   --panel-bg: #0A1233;
   --line-soft: rgba(255, 255, 255, 0.14);

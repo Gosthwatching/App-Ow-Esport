@@ -102,4 +102,47 @@ export class TierListController {
 		this.ensureCanAccessUser(userId, authUser!);
 		return this.tierListService.removeTier(userId, heroId);
 	}
+
+	// ── Map pool ────────────────────────────────────────────────────────────
+
+	@Get('users/:userId/maps')
+	getUserMapPool(
+		@Param('userId', ParseIntPipe) userId: number,
+		@Query('type') type?: string,
+		@CurrentUser() authUser?: AuthenticatedUser,
+	) {
+		this.ensureCanAccessUser(userId, authUser!);
+		return this.tierListService.getUserMapPool(userId, type);
+	}
+
+	@Get('users/by-pseudo/:pseudo/maps')
+	async getUserMapPoolByPseudo(
+		@Param('pseudo') pseudo: string,
+		@Query('type') type?: string,
+		@CurrentUser() authUser?: AuthenticatedUser,
+	) {
+		const targetUser = await this.tierListService.findUserByPseudo(pseudo);
+		this.ensureCanAccessUser(targetUser.id, authUser!);
+		return this.tierListService.getUserMapPoolByPseudo(pseudo, type);
+	}
+
+	@Put('users/:userId/maps/:mapId')
+	addToMapPool(
+		@Param('userId', ParseIntPipe) userId: number,
+		@Param('mapId', ParseIntPipe) mapId: number,
+		@CurrentUser() authUser?: AuthenticatedUser,
+	) {
+		this.ensureCanAccessUser(userId, authUser!);
+		return this.tierListService.addToMapPool(userId, mapId);
+	}
+
+	@Delete('users/:userId/maps/:mapId')
+	removeFromMapPool(
+		@Param('userId', ParseIntPipe) userId: number,
+		@Param('mapId', ParseIntPipe) mapId: number,
+		@CurrentUser() authUser?: AuthenticatedUser,
+	) {
+		this.ensureCanAccessUser(userId, authUser!);
+		return this.tierListService.removeFromMapPool(userId, mapId);
+	}
 }
