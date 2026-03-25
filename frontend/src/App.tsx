@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
+import './NewTabs.css'
 
 import { LoadingScreen } from './components/LoadingScreen'
 import { AuthScreen } from './components/AuthScreen'
@@ -41,7 +42,7 @@ function App() {
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamElo, setNewTeamElo] = useState('1000')
   const [successMessage, setSuccessMessage] = useState('')
-  const [currentPage, setCurrentPage] = useState<'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit'>('overview')
+  const [currentPage, setCurrentPage] = useState<'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit' | 'planning' | 'training' | 'absence' | 'vods'>('overview')
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [selectedTeamPlayers, setSelectedTeamPlayers] = useState<Player[]>([])
   const [teamDetailsLoading, setTeamDetailsLoading] = useState(false)
@@ -718,6 +719,7 @@ function App() {
       onFaceitMapFilterChange={setFaceitMapFilter}
       onFaceitLimitChange={setFaceitLimit}
       onLoadFaceitStats={handleLoadFaceitTeamStats}
+      token={token}
     />
   )
 }

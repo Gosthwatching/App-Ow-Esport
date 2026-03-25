@@ -10,6 +10,10 @@ import { PlayersView } from './PlayersView'
 import { HeroesView } from './HeroesView'
 import { MapsView } from './MapsView'
 import { FaceitStatsView } from './FaceitStatsView'
+import { PlanningView } from './PlanningView'
+import { TrainingView } from './TrainingView'
+import { AbsenceView } from './AbsenceView'
+import { VODsView } from './VODsView'
 import type { FormEvent } from 'react'
 import type { User, Team, Player, HeroPoolEntry, MapPoolEntry, TeamMapStatsEntry } from '../utils/types'
 
@@ -48,8 +52,8 @@ type DashboardLayoutProps = {
   myPlayerRole?: string | null
   error: string
   successMessage: string
-  currentPage: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit'
-  onPageChange: (page: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit') => void
+  currentPage: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit' | 'planning' | 'training' | 'absence' | 'vods'
+  onPageChange: (page: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit' | 'planning' | 'training' | 'absence' | 'vods') => void
   onLogout: () => void
   onTeamNameChange: (value: string) => void
   onTeamEloChange: (value: string) => void
@@ -80,6 +84,7 @@ type DashboardLayoutProps = {
   onFaceitMapFilterChange: (value: string) => void
   onFaceitLimitChange: (value: string) => void
   onLoadFaceitStats: (e: FormEvent) => Promise<void>
+  token: string
 }
 
 export function DashboardLayout({
@@ -149,6 +154,7 @@ export function DashboardLayout({
   onFaceitMapFilterChange,
   onFaceitLimitChange,
   onLoadFaceitStats,
+  token,
 }: DashboardLayoutProps) {
   return (
     <main className="dashboard-shell">
@@ -246,6 +252,22 @@ export function DashboardLayout({
             onLimitChange={onFaceitLimitChange}
             onLoadStats={onLoadFaceitStats}
           />
+        )}
+
+        {currentPage === 'planning' && (
+          <PlanningView token={token} user={user} players={players} teams={teams} />
+        )}
+
+        {currentPage === 'training' && (
+          <TrainingView token={token} user={user} />
+        )}
+
+        {currentPage === 'absence' && (
+          <AbsenceView token={token} user={user} players={players} teams={teams} />
+        )}
+
+        {currentPage === 'vods' && (
+          <VODsView token={token} user={user} />
         )}
       </section>
 

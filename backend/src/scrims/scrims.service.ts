@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { Pool } from 'pg';
 import { CreateScrimDto } from './dto/create-scrim.dto';
 import { UpdateScrimScoreDto } from './dto/update-scrim-score.dto';
+import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 
 @Injectable()
 export class ScrimsService {
@@ -137,10 +138,10 @@ export class ScrimsService {
 		const result = await this.db.query(
 			`SELECT s.*,
 							t1.name AS team1_name,
-							t2.name AS team2_name
+							COALESCE(t2.name, s.details->>'opponentTeamName') AS team2_name
 			 FROM scrims s
-			 JOIN teams t1 ON s.team1_id = t1.id
-			 JOIN teams t2 ON s.team2_id = t2.id
+			 LEFT JOIN teams t1 ON s.team1_id = t1.id
+			 LEFT JOIN teams t2 ON s.team2_id = t2.id
 			 ORDER BY s.scheduled_at DESC`,
 		);
 		return result.rows;
@@ -150,10 +151,10 @@ export class ScrimsService {
 		const scrimResult = await this.db.query(
 			`SELECT s.*,
 							t1.name AS team1_name,
-							t2.name AS team2_name
+							COALESCE(t2.name, s.details->>'opponentTeamName') AS team2_name
 			 FROM scrims s
-			 JOIN teams t1 ON s.team1_id = t1.id
-			 JOIN teams t2 ON s.team2_id = t2.id
+			 LEFT JOIN teams t1 ON s.team1_id = t1.id
+			 LEFT JOIN teams t2 ON s.team2_id = t2.id
 			 WHERE s.id = $1`,
 			[id],
 		);
@@ -181,22 +182,84 @@ export class ScrimsService {
 		};
 	}
 
-	async create(dto: CreateScrimDto) {
-		if (!dto.maps || dto.maps.length === 0) {
-			throw new BadRequestException('At least one map must be provided');
+	async create(dto: CreateScrimDto, actor?: AuthenticatedUser) {
+		let team1Id = dto.team1Id;
+		let team2Id: number | undefined = dto.team2Id;
+		const details = { ...(dto.details ?? {}) } as Record<string, unknown>;
+		const opponentTeamName = dto.opponentTeamName?.trim();
+		const opponentRoster = dto.opponentRoster?.trim();
+
+		if (dto.opponentTeamId !== undefined || opponentTeamName) {
+			if (!actor?.sub) {
+				throw new BadRequestException('Authenticated user is required for simplified scrim creation');
+			}
+
+			const actorTeamResult = await this.db.query(
+				`SELECT p.team_id
+				 FROM app_users u
+				 JOIN players p
+					ON LOWER(u.username) = LOWER(p.pseudo)
+					OR LOWER(COALESCE(u.display_name, '')) = LOWER(p.pseudo)
+					OR LOWER(COALESCE(u.faceit_nickname, '')) = LOWER(p.pseudo)
+				 WHERE u.id = $1
+					 AND p.team_id IS NOT NULL
+				 LIMIT 1`,
+				[actor.sub],
+			);
+
+			const actorTeamId = actorTeamResult.rows[0]?.team_id as number | undefined;
+			if (!actorTeamId) {
+				throw new BadRequestException('No team linked to your account. Ask an admin to link your user to a player/team.');
+			}
+
+			team1Id = actorTeamId;
+			team2Id = dto.opponentTeamId;
+
+			if (opponentTeamName) {
+				details.opponentTeamName = opponentTeamName;
+			}
+			if (opponentRoster) {
+				details.opponentRoster = opponentRoster;
+			}
 		}
 
-		const eligibleMaps = await this.getEligibleMaps(dto.team1Id, dto.team2Id);
-		if (eligibleMaps.restrictionActive) {
-			const allowedMapIds = new Set<number>(eligibleMaps.maps.map((map) => map.id as number));
-			const invalidMapIds = dto.maps
-				.map((map) => map.mapId)
-				.filter((mapId) => !allowedMapIds.has(mapId));
+		if (!team1Id) {
+			throw new BadRequestException('Team 1 must be provided');
+		}
 
-			if (invalidMapIds.length > 0) {
-				throw new BadRequestException(
-					`These maps are outside the shared player map pool for this scrim: ${invalidMapIds.join(', ')}`,
-				);
+		if (!team2Id && !opponentTeamName) {
+			throw new BadRequestException('Provide either opponentTeamId or opponentTeamName');
+		}
+
+		const format = dto.format?.trim() || 'BO5';
+		const scheduledAt = dto.scheduledAt ?? new Date().toISOString();
+
+		let maps = dto.maps;
+		if ((!maps || maps.length === 0) && team2Id) {
+			const eligibleMaps = await this.getEligibleMaps(team1Id, team2Id);
+			if (!eligibleMaps.maps.length) {
+				throw new BadRequestException('No available map for this matchup');
+			}
+
+			maps = eligibleMaps.maps.slice(0, 3).map((m, idx) => ({
+				mapId: Number(m.id),
+				order: idx + 1,
+			}));
+		}
+
+		if (team2Id && maps && maps.length > 0) {
+			const eligibleMaps = await this.getEligibleMaps(team1Id, team2Id);
+			if (eligibleMaps.restrictionActive) {
+				const allowedMapIds = new Set<number>(eligibleMaps.maps.map((map) => map.id as number));
+				const invalidMapIds = maps
+					.map((map) => map.mapId)
+					.filter((mapId) => !allowedMapIds.has(mapId));
+
+				if (invalidMapIds.length > 0) {
+					throw new BadRequestException(
+						`These maps are outside the shared player map pool for this scrim: ${invalidMapIds.join(', ')}`,
+					);
+				}
 			}
 		}
 
@@ -205,15 +268,15 @@ export class ScrimsService {
 			await client.query('BEGIN');
 
 			const scrimResult = await client.query(
-				`INSERT INTO scrims (team1_id, team2_id, scheduled_at, format)
-				 VALUES ($1, $2, $3, $4)
+				`INSERT INTO scrims (team1_id, team2_id, scheduled_at, format, details)
+				 VALUES ($1, $2, $3, $4, $5::jsonb)
 				 RETURNING id`,
-				[dto.team1Id, dto.team2Id, dto.scheduledAt, dto.format],
+				[team1Id, team2Id ?? null, scheduledAt, format, JSON.stringify(details)],
 			);
 
 			const scrimId = scrimResult.rows[0].id;
 
-			for (const m of dto.maps) {
+			for (const m of maps ?? []) {
 				await client.query(
 					`INSERT INTO scrim_maps (scrim_id, map_id, map_order)
 					 VALUES ($1, $2, $3)`,

@@ -13,6 +13,8 @@ import { ScrimsService } from './scrims.service';
 import { CreateScrimDto } from './dto/create-scrim.dto';
 import { UpdateScrimScoreDto } from './dto/update-scrim-score.dto';
 import { Roles } from '../security/roles.decorator';
+import { CurrentUser } from '../security/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
 
 @Controller('scrims')
 export class ScrimsController {
@@ -37,13 +39,16 @@ export class ScrimsController {
 	}
 
 	@Post()
-	@Roles('admin')
-	create(@Body() dto: CreateScrimDto) {
-		return this.scrimsService.create(dto);
+	@Roles('manager', 'coach', 'admin', 'owner', 'ceo')
+	create(
+		@Body() dto: CreateScrimDto,
+		@CurrentUser() actor: AuthenticatedUser | undefined,
+	) {
+		return this.scrimsService.create(dto, actor);
 	}
 
 	@Put(':id/score')
-	@Roles('admin')
+	@Roles('manager', 'coach', 'admin', 'owner', 'ceo')
 	updateScore(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() dto: UpdateScrimScoreDto,
@@ -52,7 +57,7 @@ export class ScrimsController {
 	}
 
 	@Delete(':id')
-	@Roles('admin')
+	@Roles('manager', 'coach', 'admin', 'owner', 'ceo')
 	delete(@Param('id', ParseIntPipe) id: number) {
 		return this.scrimsService.delete(id);
 	}

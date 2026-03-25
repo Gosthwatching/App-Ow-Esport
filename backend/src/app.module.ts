@@ -16,6 +16,10 @@ import { TierListModule } from './tier-list/tier-list.module';
 import { WriteAuthGuard } from './security/write-auth.guard';
 import { AuthModule } from './auth/auth.module';
 import { FaceitModule } from './faceit/faceit.module';
+import { CoachingSessionsModule } from './coaching-sessions/coaching-sessions.module';
+import { TrainingsModule } from './trainings/trainings.module';
+import { AbsencesModule } from './absences/absences.module';
+import { VODsModule } from './vods/vods.module';
 
 @Module({
   imports: [
@@ -40,6 +44,10 @@ import { FaceitModule } from './faceit/faceit.module';
     TierListModule,
     AuthModule,
     FaceitModule,
+    CoachingSessionsModule,
+    TrainingsModule,
+    AbsencesModule,
+    VODsModule,
   ],
   controllers: [AppController],
   providers: [

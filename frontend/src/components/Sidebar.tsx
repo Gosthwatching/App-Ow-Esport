@@ -1,6 +1,6 @@
 type SidebarProps = {
-  currentPage: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit'
-  onPageChange: (page: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit') => void
+  currentPage: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit' | 'planning' | 'training' | 'absence' | 'vods'
+  onPageChange: (page: 'overview' | 'teams' | 'players' | 'heroes' | 'maps' | 'faceit' | 'planning' | 'training' | 'absence' | 'vods') => void
   onLogout: () => void
 }
 
@@ -50,6 +50,34 @@ export function Sidebar({ currentPage, onPageChange, onLogout }: SidebarProps) {
           title="Faceit"
         >
           F
+        </button>
+        <button
+          className={`nav-item ${currentPage === 'planning' ? 'active' : ''}`}
+          onClick={() => onPageChange('planning')}
+          title="Planning"
+        >
+          📅
+        </button>
+        <button
+          className={`nav-item ${currentPage === 'training' ? 'active' : ''}`}
+          onClick={() => onPageChange('training')}
+          title="Training"
+        >
+          🎓
+        </button>
+        <button
+          className={`nav-item ${currentPage === 'absence' ? 'active' : ''}`}
+          onClick={() => onPageChange('absence')}
+          title="Absences"
+        >
+          📋
+        </button>
+        <button
+          className={`nav-item ${currentPage === 'vods' ? 'active' : ''}`}
+          onClick={() => onPageChange('vods')}
+          title="VODs"
+        >
+          🎬
         </button>
       </nav>
       <button className="nav-item bottom" onClick={onLogout} title="Logout">
