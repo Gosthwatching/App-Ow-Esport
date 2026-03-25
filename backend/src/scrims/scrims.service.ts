@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { CreateScrimDto } from './dto/create-scrim.dto';
 import { UpdateScrimScoreDto } from './dto/update-scrim-score.dto';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
+import { normalizeRole } from '../security/role-hierarchy';
 
 @Injectable()
 export class ScrimsService {
@@ -46,6 +47,67 @@ export class ScrimsService {
 		);
 
 		return result.rows;
+	}
+
+	private async getVisibleTeamIds(actor: AuthenticatedUser) {
+		const result = await this.db.query(
+			`SELECT DISTINCT team_id
+			 FROM (
+				SELECT p.team_id
+				FROM app_users u
+				JOIN players p
+					ON LOWER(u.username) = LOWER(p.pseudo)
+					OR LOWER(COALESCE(u.display_name, '')) = LOWER(p.pseudo)
+					OR LOWER(COALESCE(u.faceit_nickname, '')) = LOWER(p.pseudo)
+				WHERE u.id = $1
+					AND p.team_id IS NOT NULL
+
+				UNION
+
+				SELECT cs.team_id
+				FROM coaching_sessions cs
+				WHERE cs.coach_id = $1
+					AND cs.team_id IS NOT NULL
+			 ) visible_teams
+			 WHERE team_id IS NOT NULL`,
+			[actor.sub],
+		);
+
+		return result.rows.map((row) => Number(row.team_id)).filter(Boolean);
+	}
+
+	private async getVisibleScrimQuery(actor: AuthenticatedUser) {
+		const normalizedRole = normalizeRole(actor.role);
+		const baseQuery = `SELECT s.*,
+								t1.name AS team1_name,
+								COALESCE(t2.name, s.details->>'opponentTeamName') AS team2_name
+						 FROM scrims s
+						 LEFT JOIN teams t1 ON s.team1_id = t1.id
+						 LEFT JOIN teams t2 ON s.team2_id = t2.id`;
+
+		if (normalizedRole === 'owner' || normalizedRole === 'ceo' || normalizedRole === 'manager_pole_ow') {
+			return {
+				query: baseQuery,
+				params: [] as unknown[],
+				hasWhere: false,
+			};
+		}
+
+		const visibleTeamIds = await this.getVisibleTeamIds(actor);
+
+		if (!visibleTeamIds.length) {
+			return {
+				query: `${baseQuery} WHERE 1 = 0`,
+				params: [] as unknown[],
+				hasWhere: true,
+			};
+		}
+
+		return {
+			query: `${baseQuery} WHERE s.team1_id = ANY($1::int[]) OR s.team2_id = ANY($1::int[])`,
+			params: [visibleTeamIds] as unknown[],
+			hasWhere: true,
+		};
 	}
 
 	async getEligibleMaps(team1Id: number, team2Id: number) {
@@ -134,29 +196,20 @@ export class ScrimsService {
 		};
 	}
 
-	async getAll() {
+	async getAll(actor: AuthenticatedUser) {
+		const visibleQuery = await this.getVisibleScrimQuery(actor);
 		const result = await this.db.query(
-			`SELECT s.*,
-							t1.name AS team1_name,
-							COALESCE(t2.name, s.details->>'opponentTeamName') AS team2_name
-			 FROM scrims s
-			 LEFT JOIN teams t1 ON s.team1_id = t1.id
-			 LEFT JOIN teams t2 ON s.team2_id = t2.id
-			 ORDER BY s.scheduled_at DESC`,
+			`${visibleQuery.query} ORDER BY s.scheduled_at DESC`,
+			visibleQuery.params,
 		);
 		return result.rows;
 	}
 
-	async getOne(id: number) {
+	async getOne(id: number, actor: AuthenticatedUser) {
+		const visibleQuery = await this.getVisibleScrimQuery(actor);
 		const scrimResult = await this.db.query(
-			`SELECT s.*,
-							t1.name AS team1_name,
-							COALESCE(t2.name, s.details->>'opponentTeamName') AS team2_name
-			 FROM scrims s
-			 LEFT JOIN teams t1 ON s.team1_id = t1.id
-			 LEFT JOIN teams t2 ON s.team2_id = t2.id
-			 WHERE s.id = $1`,
-			[id],
+			`${visibleQuery.query} ${visibleQuery.hasWhere ? 'AND' : 'WHERE'} s.id = $${visibleQuery.params.length + 1}`,
+			[...visibleQuery.params, id],
 		);
 
 		if (scrimResult.rows.length === 0) {

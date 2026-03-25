@@ -109,6 +109,7 @@ export type Scrim = {
   team1_name?: string | null
   team2_name?: string | null
   details?: {
+    sessionType?: 'scrim' | 'official'
     opponentTeamName?: string
     opponentRoster?: string
     language?: 'FR' | 'EN'

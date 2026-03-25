@@ -7,23 +7,29 @@ import {
   Param,
   Body,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common'
 import { CoachingSessionsService } from './coaching-sessions.service'
 import { CreateCoachingSessionDto } from './dto/create-coaching-session.dto'
 import { Roles } from '../security/roles.decorator'
+import { JwtAuthGuard } from '../security/jwt-auth.guard'
+import { CurrentUser } from '../security/current-user.decorator'
+import type { AuthenticatedUser } from '../auth/authenticated-user.interface'
 
 @Controller('coaching-sessions')
 export class CoachingSessionsController {
   constructor(private readonly service: CoachingSessionsService) {}
 
   @Get()
-  getAll() {
-    return this.service.getAll()
+  @UseGuards(JwtAuthGuard)
+  getAll(@CurrentUser() actor: AuthenticatedUser) {
+    return this.service.getAll(actor)
   }
 
   @Get(':id')
-  getOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getOne(id)
+  @UseGuards(JwtAuthGuard)
+  getOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: AuthenticatedUser) {
+    return this.service.getOne(id, actor)
   }
 
   @Post()

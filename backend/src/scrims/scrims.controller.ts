@@ -8,6 +8,7 @@ import {
 	Post,
 	Put,
 	Query,
+	UseGuards,
 } from '@nestjs/common';
 import { ScrimsService } from './scrims.service';
 import { CreateScrimDto } from './dto/create-scrim.dto';
@@ -15,14 +16,16 @@ import { UpdateScrimScoreDto } from './dto/update-scrim-score.dto';
 import { Roles } from '../security/roles.decorator';
 import { CurrentUser } from '../security/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user.interface';
+import { JwtAuthGuard } from '../security/jwt-auth.guard';
 
 @Controller('scrims')
 export class ScrimsController {
 	constructor(private readonly scrimsService: ScrimsService) {}
 
 	@Get()
-	getAll() {
-		return this.scrimsService.getAll();
+	@UseGuards(JwtAuthGuard)
+	getAll(@CurrentUser() actor: AuthenticatedUser) {
+		return this.scrimsService.getAll(actor);
 	}
 
 	@Get('eligible-maps/options')
@@ -34,8 +37,9 @@ export class ScrimsController {
 	}
 
 	@Get(':id')
-	getOne(@Param('id', ParseIntPipe) id: number) {
-		return this.scrimsService.getOne(id);
+	@UseGuards(JwtAuthGuard)
+	getOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: AuthenticatedUser) {
+		return this.scrimsService.getOne(id, actor);
 	}
 
 	@Post()

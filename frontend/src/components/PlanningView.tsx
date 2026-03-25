@@ -36,6 +36,7 @@ export function PlanningView({ token, user, players, teams }: PlanningViewProps)
     scheduled_at: '',
   })
   const [scrimQuick, setScrimQuick] = useState({
+    sessionType: 'scrim' as 'scrim' | 'official',
     opponentTeamName: '',
     opponentRoster: '',
     language: 'EN' as 'FR' | 'EN',
@@ -98,10 +99,8 @@ export function PlanningView({ token, user, players, teams }: PlanningViewProps)
   async function handleCreateScrim(e: FormEvent) {
     e.preventDefault()
 
-    const myPlayer = players.find((p) => (p.userId ?? p.user_id) === user?.id)
-    const myTeamId = myPlayer?.teamId ?? myPlayer?.team_id ?? null
     const isManagerOrCoach = user?.role === 'manager' || user?.role === 'coach'
-    const singleTeamMode = Boolean(isManagerOrCoach && myTeamId)
+    const singleTeamMode = Boolean(isManagerOrCoach)
 
     if (!token) return
 
@@ -128,6 +127,7 @@ export function PlanningView({ token, user, players, teams }: PlanningViewProps)
             details: {
               opponentTeamName: scrimQuick.opponentTeamName.trim(),
               opponentRoster: scrimQuick.opponentRoster.trim() || undefined,
+              sessionType: scrimQuick.sessionType,
               language: scrimQuick.language,
               lobbyCreation: scrimQuick.lobbyCreation,
               twoHourBlock: scrimQuick.twoHourBlock,
@@ -258,6 +258,10 @@ export function PlanningView({ token, user, players, teams }: PlanningViewProps)
     return scrim.details?.mapPool ?? 'Faceit Map Pool'
   }
 
+  function getPlanningEntryLabel(scrim: Scrim) {
+    return scrim.details?.sessionType === 'official' ? 'Match officiel' : 'Scrim'
+  }
+
   return (
     <div className="planning-view">
       <div className="planning-tabs">
@@ -334,6 +338,26 @@ export function PlanningView({ token, user, players, teams }: PlanningViewProps)
 
               {singleTeamMode && (
                 <div className="scrim-quick-panel">
+                  <div className="quick-group">
+                    <span>Type</span>
+                    <div className="quick-actions">
+                      <button
+                        type="button"
+                        className={`quick-chip ${scrimQuick.sessionType === 'scrim' ? 'active' : ''}`}
+                        onClick={() => setScrimQuick({ ...scrimQuick, sessionType: 'scrim' })}
+                      >
+                        Scrim
+                      </button>
+                      <button
+                        type="button"
+                        className={`quick-chip ${scrimQuick.sessionType === 'official' ? 'active' : ''}`}
+                        onClick={() => setScrimQuick({ ...scrimQuick, sessionType: 'official' })}
+                      >
+                        Match officiel
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="quick-group">
                     <span>Date</span>
                     <input
@@ -497,7 +521,7 @@ export function PlanningView({ token, user, players, teams }: PlanningViewProps)
               scrims.map((scrim) => (
                 <div key={scrim.id} className="scrim-card">
                   <div className="scrim-info">
-                    <strong>{scrim.team1_name ?? 'Team A'} vs {scrim.team2_name ?? 'Team B'}</strong>
+                    <strong>{getPlanningEntryLabel(scrim)}: {scrim.team1_name ?? 'Team A'} vs {scrim.team2_name ?? 'Team B'}</strong>
                     {scrim.scheduled_at && (
                       <p className="scrim-date">📅 {formatDate(scrim.scheduled_at)}</p>
                     )}
